@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Happy Birthday 🎂</title>
+<style>
+  :root {
+    --accent: #00e6a8;
+    --accent2: #7b5cff;
+    --gold: #ffd66b;
+    --bg: #05060a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    background: radial-gradient(circle at 50% 30%, #0d1020 0%, var(--bg) 70%);
+    color: #fff;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ---------- Matrix / binary rain canvas ---------- */
+  #matrix {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    opacity: 0;
+    transition: opacity 1.2s ease;
+  }
+
+  /* ---------- Fireworks canvas ---------- */
+  #fireworks {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  /* ---------- Generic stage layer ---------- */
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .stage.show { opacity: 1; pointer-events: auto; }
+
+  /* ---------- Countdown ---------- */
+  #countdown { z-index: 8; }
+  .count-num {
+    font-size: clamp(7rem, 26vw, 18rem);
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 0 30px var(--accent), 0 0 70px var(--accent2);
+    animation: pop 1s ease forwards;
+  }
+  @keyframes pop {
+    0%   { transform: scale(0.3); opacity: 0; filter: blur(20px); }
+    30%  { transform: scale(1.15); opacity: 1; filter: blur(0); }
+    70%  { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.6); opacity: 0; filter: blur(8px); }
+  }
+
+  /* ---------- Binary "Happy Birthday" reveal ---------- */
+  #reveal { z-index: 7; }
+  .hb-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.05em;
+    max-width: 92vw;
+  }
+  .hb-char {
+    font-size: clamp(2.6rem, 11vw, 8rem);
+    font-weight: 800;
+    line-height: 1.05;
+    font-family: 'Consolas', 'Courier New', monospace;
+    color: var(--accent);
+    text-shadow: 0 0 18px rgba(0,230,168,0.7);
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  .hb-char.space { width: 0.4em; }
+  .hb-char.flow { animation: flowDown 0.9s cubic-bezier(.16,.84,.34,1) forwards; }
+  @keyframes flowDown {
+    0%   { transform: translateY(-130%); opacity: 0; color: #fff; filter: blur(2px); }
+    60%  { opacity: 1; color: var(--accent); }
+    100% { transform: translateY(0); opacity: 1; filter: blur(0);
+           text-shadow: 0 0 24px var(--accent), 0 0 8px #fff; }
+  }
+
+  /* ---------- Cake ---------- */
+  #cakeStage { z-index: 7; flex-direction: column; }
+  .cake-btn {
+    background: none; border: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center;
+    transform: translateY(30px) scale(0.8);
+    opacity: 0;
+    transition: transform 1s cubic-bezier(.16,.84,.34,1), opacity 1s ease;
+  }
+  .cake-btn.in { transform: translateY(0) scale(1); opacity: 1; }
+  .cake-btn:hover .cake-emoji { transform: scale(1.08) rotate(-3deg); }
+  .cake-emoji {
+    font-size: clamp(6rem, 20vw, 11rem);
+    filter: drop-shadow(0 10px 30px rgba(255,214,107,0.45));
+    transition: transform 0.4s ease;
+    animation: float 3s ease-in-out infinite;
+  }
+  @keyframes float { 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(-14px);} }
+  .cake-msg {
+    margin-top: 1.4rem;
+    font-size: clamp(1rem, 3.5vw, 1.6rem);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    animation: blink 1.6s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{ opacity: 0.45;} 50%{ opacity: 1; text-shadow: 0 0 18px var(--gold);} }
+
+  /* ---------- Scroll / message ---------- */
+  #scrollStage { z-index: 9; padding: 4vh 4vw; }
+  .scroll {
+    position: relative;
+    width: min(640px, 92vw);
+    max-height: 86vh;
+    background:
+      linear-gradient(180deg, rgba(28,22,14,0.96), rgba(18,14,9,0.98));
+    border: 1px solid rgba(255,214,107,0.35);
+    border-radius: 18px;
+    box-shadow: 0 0 60px rgba(255,214,107,0.18), inset 0 0 60px rgba(0,0,0,0.6);
+    padding: 0;
+    overflow: hidden;
+    transform: scaleY(0.02);
+    transform-origin: top center;
+    opacity: 0;
+  }
+  .scroll.unroll { animation: unroll 1.4s cubic-bezier(.22,1,.36,1) forwards; }
+  @keyframes unroll {
+    0%   { transform: scaleY(0.02); opacity: 0; }
+    25%  { opacity: 1; }
+    100% { transform: scaleY(1); opacity: 1; }
+  }
+  .scroll-bar {
+    height: 22px;
+    background: linear-gradient(90deg, #c79a3a, var(--gold), #c79a3a);
+    box-shadow: 0 0 18px rgba(255,214,107,0.4);
+  }
+  .scroll-inner {
+    padding: clamp(1.6rem, 5vw, 3rem);
+    overflow-y: auto;
+    max-height: calc(86vh - 44px);
+    opacity: 0;
+    transition: opacity 0.8s ease 0.9s;
+  }
+  .scroll.unroll .scroll-inner { opacity: 1; }
+  .scroll-inner::-webkit-scrollbar { width: 8px; }
+  .scroll-inner::-webkit-scrollbar-thumb { background: rgba(255,214,107,0.4); border-radius: 8px; }
+
+  .scroll-title {
+    font-size: clamp(1.8rem, 6vw, 3rem);
+    text-align: center;
+    background: linear-gradient(90deg, var(--gold), #fff, var(--gold));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.4rem;
+    font-weight: 800;
+  }
+  #messageText {
+    font-size: clamp(1.05rem, 3.4vw, 1.3rem);
+    line-height: 1.85;
+    color: #f3e9d6;
+    white-space: pre-wrap;
+    text-align: center;
+  }
+  .signature {
+    margin-top: 2rem;
+    text-align: right;
+    font-style: italic;
+    color: var(--gold);
+    font-size: clamp(1rem, 3vw, 1.25rem);
+  }
+
+  /* ---------- Skip / replay ---------- */
+  .ctl {
+    position: fixed;
+    z-index: 20;
+    bottom: 18px;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 8px 16px;
+    border-radius: 30px;
+    cursor: pointer;
+    backdrop-filter: blur(6px);
+    transition: color 0.3s, border-color 0.3s;
+  }
+  .ctl:hover { color: #fff; border-color: var(--accent); }
+  #skipBtn { right: 18px; }
+  #replayBtn { left: 18px; opacity: 0; pointer-events: none; transition: opacity .4s; }
+  #replayBtn.show { opacity: 1; pointer-events: auto; }
+</style>
+</head>
+<body>
+  <canvas id="matrix"></canvas>
+  <canvas id="fireworks"></canvas>
+
+  <!-- Countdown -->
+  <div class="stage" id="countdown"><div class="count-num" id="countNum"></div></div>
+
+  <!-- Binary reveal of Happy Birthday -->
+  <div class="stage" id="reveal"><div class="hb-wrap" id="hbWrap"></div></div>
+
+  <!-- Cake -->
+  <div class="stage" id="cakeStage">
+    <button class="cake-btn" id="cakeBtn">
+      <span class="cake-emoji">🎂</span>
+      <span class="cake-msg">Click to open ✨</span>
+    </button>
+  </div>
+
+  <!-- Scroll message -->
+  <div class="stage" id="scrollStage">
+    <div class="scroll" id="scroll">
+      <div class="scroll-bar"></div>
+      <div class="scroll-inner">
+        <div class="scroll-title">Happy Birthday! 🎉</div>
+        <!-- ============================================================= -->
+        <!--  ✏️  EDIT YOUR MESSAGE BELOW  (between the message tags)       -->
+        <!-- ============================================================= -->
+        <div id="messageText">Wishing you the happiest of birthdays today! 🎈
+
+        Happy Birthday Jan 🥹❤️
+Wishing you this day full of love excitement and happiness. May ALLAH Bless you with every possible success. May you live a long and happy life and all your dreams come true.
+We met on 17 November 2025 and in a few months it feels like we know each other from decades 🥹❤️ I’m so happy to have you bro. You’re a brother, a best friend, a crime partner 💀 and much more than that brother💗🤧
+Agr mashooq hoti usy itna na manata kabhi jitna tuje manata hu zalil insan 😭😂 bandy da puttar ban ja ni ty tinu littar pai jany nay😭😂 looking forward to be with you for the rest of my life jan 🥹💗
+I may end up being out of words but you know from my actions what you mean to me bro 💗🫠
+It’s truly surprising I opened up to someone in that short amount of time. It proves we were destined to met kojy 🤧❤️
+I want you to be successful even more than me. I want you to work hard and achieve all your goals and make your family and your bhaiya proud. 🥺💗 I want you to take good care of your family 💗
+          🌟</div>
+        <!-- ============================================================= -->
+        <div class="signature">— With love 💛</div>
+      </div>
+    </div>
+  </div>
+  <div class="scroll-bar"></div>
+
+  <div class="ctl" id="skipBtn">Skip ⏭</div>
+  <div class="ctl" id="replayBtn">↺ Replay</div>
+
+<script>
+/* ============================================================
+   CONFIG — change the name / countdown here if you like
+   ============================================================ */
+const HB_TEXT = "HAPPY BIRTHDAY";   // text that flows down
+const COUNT_FROM = 3;               // countdown start number
+
+/* ---------- element refs ---------- */
+const $ = id => document.getElementById(id);
+const countdown = $('countdown'), countNum = $('countNum');
+const reveal = $('reveal'), hbWrap = $('hbWrap');
+const cakeStage = $('cakeStage'), cakeBtn = $('cakeBtn');
+const scrollStage = $('scrollStage'), scrollEl = $('scroll');
+const replayBtn = $('replayBtn');
+
+let timers = [];
+const after = (ms, fn) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+/* ============================================================
+   FIREWORKS
+   ============================================================ */
+const fwCanvas = $('fireworks'), fwx = fwCanvas.getContext('2d');
+let particles = [], fwRunning = true;
+function sizeCanvas(c){ c.width = innerWidth; c.height = innerHeight; }
+sizeCanvas(fwCanvas);
+
+function firework(x, y){
+  const hue = Math.random()*360;
+  const count = 36 + Math.random()*22;
+  for (let i=0;i<count;i++){
+    const ang = (Math.PI*2*i)/count;
+    const sp = 1.5 + Math.random()*4.5;
+    particles.push({
+      x, y,
+      vx: Math.cos(ang)*sp,
+      vy: Math.sin(ang)*sp,
+      life: 1,
+      decay: 0.008 + Math.random()*0.018,
+      color: `hsl(${hue + Math.random()*40}, 100%, ${55+Math.random()*15}%)`,
+      size: 1.5 + Math.random()*2
+    });
+  }
+}
+function randomFirework(){
+  firework(innerWidth*(0.15+Math.random()*0.7), innerHeight*(0.15+Math.random()*0.5));
+}
+function fwLoop(){
+  fwx.fillStyle = 'rgba(5,6,10,0.18)';
+  fwx.fillRect(0,0,fwCanvas.width,fwCanvas.height);
+  fwx.globalCompositeOperation = 'lighter';
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vy += 0.04; p.vx *= 0.99;
+    p.life -= p.decay;
+    if (p.life <= 0){ particles.splice(i,1); continue; }
+    fwx.globalAlpha = Math.max(p.life,0);
+    fwx.beginPath();
+    fwx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+    fwx.fillStyle = p.color;
+    fwx.fill();
+  }
+  fwx.globalAlpha = 1;
+  fwx.globalCompositeOperation = 'source-over';
+  requestAnimationFrame(fwLoop);
+}
+fwLoop();
+let fwInterval = setInterval(()=>{ if(fwRunning) randomFirework(); }, 1100);
+
+/* ============================================================
+   MATRIX / BINARY RAIN
+   ============================================================ */
+const mCanvas = $('matrix'), mx = mCanvas.getContext('2d');
+sizeCanvas(mCanvas);
+const glyphs = "01010110100011010アカサ01ナ01ハ01".split('');
+let cols, drops;
+function initMatrix(){
+  const fs = 16;
+  cols = Math.floor(mCanvas.width / fs);
+  drops = Array(cols).fill(0).map(()=> Math.random()*mCanvas.height/fs);
+}
+initMatrix();
+function matrixLoop(){
+  const fs = 16;
+  mx.fillStyle = 'rgba(5,6,10,0.08)';
+  mx.fillRect(0,0,mCanvas.width,mCanvas.height);
+  mx.font = fs + "px monospace";
+  for (let i=0;i<cols;i++){
+    const ch = glyphs[Math.floor(Math.random()*glyphs.length)];
+    const x = i*fs, y = drops[i]*fs;
+    mx.fillStyle = Math.random() > 0.975 ? '#bfffe6' : 'rgba(0,230,168,0.55)';
+    mx.fillText(ch, x, y);
+    if (y > mCanvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i] += 0.5;
+  }
+  requestAnimationFrame(matrixLoop);
+}
+matrixLoop();
+
+window.addEventListener('resize', ()=>{
+  sizeCanvas(fwCanvas); sizeCanvas(mCanvas); initMatrix();
+});
+
+/* ============================================================
+   SEQUENCE
+   ============================================================ */
+function showStage(el){ el.classList.add('show'); }
+function hideStage(el){ el.classList.remove('show'); }
+
+function runCountdown(){
+  showStage(countdown);
+  let n = COUNT_FROM;
+  const tick = () => {
+    countNum.textContent = n;
+    countNum.style.animation = 'none';
+    void countNum.offsetWidth;          // reflow to restart animation
+    countNum.style.animation = 'pop 1s ease forwards';
+    randomFirework();
+    n--;
+    if (n >= 1) after(1000, tick);
+    else after(1000, ()=>{ hideStage(countdown); runReveal(); });
+  };
+  tick();
+}
+
+function runReveal(){
+  $('matrix').style.opacity = '0.9';
+  hbWrap.innerHTML = '';
+  const chars = [];
+  for (const c of HB_TEXT){
+    const span = document.createElement('span');
+    span.className = 'hb-char' + (c === ' ' ? ' space' : '');
+    span.textContent = c === ' ' ? '' : c;
+    hbWrap.appendChild(span);
+    chars.push({span, target: c});
+  }
+  showStage(reveal);
+
+  // each char scrambles through binary before settling — flows top to bottom
+  chars.forEach((obj, i) => {
+    if (obj.target === ' '){ return; }
+    after(i*130, ()=>{
+      obj.span.classList.add('flow');
+      let scrambles = 6;
+      const scr = setInterval(()=>{
+        if (scrambles-- <= 0){ clearInterval(scr); obj.span.textContent = obj.target; return; }
+        obj.span.textContent = Math.random() > 0.5 ? '0' : '1';
+      }, 70);
+      timers.push(scr);
+    });
+  });
+
+  const total = chars.length*130 + 1200;
+  after(total, ()=>{ randomFirework(); randomFirework(); });
+  after(total + 1400, ()=>{ $('matrix').style.opacity = '0'; hideStage(reveal); runCake(); });
+}
+
+function runCake(){
+  showStage(cakeStage);
+  after(60, ()=> cakeBtn.classList.add('in'));
+  randomFirework();
+}
+
+cakeBtn.addEventListener('click', ()=>{
+  // burst of fireworks on open
+  for (let i=0;i<5;i++) after(i*120, randomFirework);
+  hideStage(cakeStage);
+  after(500, runScroll);
+});
+
+function runScroll(){
+  showStage(scrollStage);
+  scrollEl.classList.remove('unroll');
+  void scrollEl.offsetWidth;
+  scrollEl.classList.add('unroll');
+  replayBtn.classList.add('show');
+}
+
+/* ---------- controls ---------- */
+$('skipBtn').addEventListener('click', ()=>{
+  clearTimers();
+  [countdown, reveal, cakeStage].forEach(hideStage);
+  $('matrix').style.opacity = '0';
+  cakeBtn.classList.remove('in');
+  runScroll();
+});
+
+replayBtn.addEventListener('click', ()=> location.reload());
+
+/* ---------- go ---------- */
+after(400, runCountdown);
+</script>
+</body>
+</html>
